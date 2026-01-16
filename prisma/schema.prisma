@@ -1,0 +1,229 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum MemberType {
+  STUDENT
+  NON_STUDENT
+}
+
+enum FinancialStatus {
+  FINANCIAL_MEMBER
+  NON_FINANCIAL_MEMBER
+  RECLAIMABLE_MEMBER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?   
+  firstName     String?
+  middleName    String?
+  lastName      String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          UserRole  @default(USER)
+  privileges    String[]  @default([])
+  
+  // Member Specific Fields
+  controlNumber       String?   @unique
+  memberType          MemberType?
+  financialStatus     FinancialStatus @default(NON_FINANCIAL_MEMBER)
+  initiationYear      Int?
+  
+  phone               String?
+  mailingAddress      String?
+  mailingAddress2     String?
+  city                String?
+  state               String?
+  zipcode             String?
+
+  districtId    String?
+  district      District? @relation(fields: [districtId], references: [id])
+  
+  chapterId     String?
+  chapter       Chapter?  @relation(fields: [chapterId], references: [id])
+  
+  initiationChapterId String?
+  initiationChapter   Chapter? @relation("InitiationChapter", fields: [initiationChapterId], references: [id])
+
+  userRoleId    String?
+  userRole      Role?     @relation(fields: [userRoleId], references: [id])
+
+  accounts      Account[]
+  sessions      Session[]
+  payments      Payment[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? // Soft delete
+  otpCode       String?
+  otpExpiresAt  DateTime?
+  isSuperAdmin  Boolean   @default(false)
+}
+
+model PendingRegistration {
+  id              String   @id @default(cuid())
+  firstName       String
+  middleName      String?
+  lastName        String
+  email           String   @unique
+  password        String
+  role            UserRole @default(USER) // Added role to pending registrations
+  verificationToken String @unique
+  expiresAt       DateTime
+  
+  createdAt       DateTime @default(now())
+}
+
+model District {
+  id             String    @id @default(cuid())
+  name           String    // e.g. "District Alpha"
+  number         String    // 10 digits max, e.g. "9110"
+  email          String?
+  shieldUrl      String?   // URL to Cloudinary image
+  phone          String?
+
+  chapters       Chapter[]
+  users          User[]
+  roles          Role[]
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime? // Soft delete
+  deleted        Boolean   @default(false)
+}
+
+model Chapter {
+  id             String    @id @default(cuid())
+  name           String    // chapterName
+  code           String?   // optional chapter code
+  email          String?   // chapterEmailAddress
+  phone          String?
+  address        String?
+  mailingAddress String?
+  state          String?
+  city           String?
+  zipcode        String?
+  
+  districtId     String
+  district       District  @relation(fields: [districtId], references: [id])
+  
+  users          User[]
+  initiationUsers User[] @relation("InitiationChapter")
+  fees           Fee[]
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime? // Soft delete
+  deleted        Boolean   @default(false)
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  amount    Float
+  status    String   // "Pending", "Completed"
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  feeId     String?
+  fee       Fee?     @relation(fields: [feeId], references: [id])
+  paymentYear Int?
+
+  date      DateTime @default(now())
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// NextAuth standard models
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Fee {
+  id               String    @id @default(cuid())
+  name             String    // feeName
+  abbreviation     String?   // feeAbbreviation
+  amount           Float
+  
+  membershipFee    Boolean   @default(false)
+  newMembershipFee Boolean   @default(false)
+  
+  chapterId        String
+  chapter          Chapter   @relation(fields: [chapterId], references: [id])
+  
+  payments         Payment[]
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime? // Soft delete
+}
+
+model Role {
+  id              String    @id @default(cuid())
+  name            String    // roleName
+  abbreviation    String?   // roleAbbreviation
+  privileges      String[]  @default([])
+  
+  districtId      String
+  district        District  @relation(fields: [districtId], references: [id])
+  
+  users           User[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime? // Soft delete
+}
+
+model Configuration {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
