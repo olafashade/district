@@ -1,4 +1,4 @@
-FROM node:20.18-alpine AS builder
+FROM node:20.19-alpine AS builder
 
 # Enable pnpm
 RUN corepack enable 
@@ -22,7 +22,7 @@ RUN npx prisma generate
 
 RUN rm -rf .next && npm run build
 
-FROM node:20.18-alpine AS runner
+FROM node:20.19-alpine AS runner
 
 RUN corepack enable
 
